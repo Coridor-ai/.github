@@ -1,26 +1,37 @@
 # Coridor
 
-Synthetic personas for market research, built on real behavioral data.
+Synthetic personas for market research, grounded in real behavioral data.
 
-We turn 2.16 million L&E prospect records into a population of synthetic people who can sit through a 30-minute interview, fill out a survey, react to a prototype, or argue about pricing. They have personality, memory, and affect. They don't break character.
+We turn 2.16 million L&E prospect records into a population of synthetic people. They sit through interviews, fill out surveys, react to prototypes, and argue about pricing. They have personality, memory, and affect, and they don't break character.
 
-## How it works
+## What we believe
 
-Coridor runs a four-stage pipeline:
+Human-like emotional intelligence is the missing factor needed to usher in the next phase of AI agent adoption. We work at the cutting edge of AI and ML while building mental models of self using rigorous cognitive science and neuroscience methodologies.
 
-- **SII** — the Synthetic Intelligence Index. Cleaned, typed, queryable behavioral data.
-- **CAP** — the Cognitive Architecture Pipeline. Personality, memory, affect, and decision-making wired into each persona.
-- **Atrium** — the orchestration layer. Studies, sessions, transcripts, replay.
-- **VoiceBox** — the response layer. Surveys, interviews, focus groups, deep ethnographic work.
+Ethics in AI is a first-class priority. Every persona, pipeline, and product gets that lens.
 
-You ask a question. A panel answers. The answers are grounded in who those people actually are.
+## How we build
 
-## Public repos
+We pick the simplest approach to every problem. We rank our work by RQE (Reliability, Quality, Efficiency) in that order. Reliability is the cornerstone of both our code and how we treat each other.
 
-- [coridor-sdlc](https://github.com/Coridor-ai/coridor-sdlc) — engineering process, SDLC framework, ADRs, handoff system.
-- [coridor-presentations](https://github.com/Coridor-ai/coridor-presentations) — pitch decks, internal guides, presentation templates.
+## Repos
 
-The product code lives in private repos.
+**Platform Core**
+- [coridor-core](https://github.com/Coridor-ai/coridor-core) - the four-stage pipeline (SII, CAP, Atrium, VoiceBox).
+- [coridor-validation](https://github.com/Coridor-ai/coridor-validation) - validation harness for personas and outputs.
+
+**Products**
+- [coridor-studio](https://github.com/Coridor-ai/coridor-studio) - demo and experiment surface.
+- [coridor-integrations](https://github.com/Coridor-ai/coridor-integrations) - MCP and OAuth connectors.
+- [coridor-village](https://github.com/Coridor-ai/coridor-village) - Phaser-based simulation.
+- [coridor-marketing-site](https://github.com/Coridor-ai/coridor-marketing-site) - public website.
+
+**Open Source**
+- [cema-4](https://github.com/Coridor-ai/cema-4) - sprint orchestration system, headed for public release.
+
+**Supporting**
+- [coridor-sdlc](https://github.com/Coridor-ai/coridor-sdlc) - engineering process, ADRs, handoff system.
+- [coridor-presentations](https://github.com/Coridor-ai/coridor-presentations) - decks and templates.
 
 ## Contact
 
