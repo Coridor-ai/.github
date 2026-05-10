@@ -1,6 +1,6 @@
 # Coridor
 
-Synthetic personas for market research, grounded in real behavioral data.
+Coridors are synthetic personas for market research, grounded in human qualitative participant data.
 
 We turn millions of behavioral records into synthetic people. They sit through interviews, fill out surveys, react to prototypes, and argue about pricing. They carry personality, memory, and affect, and they don't break character.
 
