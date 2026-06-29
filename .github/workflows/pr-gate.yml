@@ -1,0 +1,50 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: 00f77988f711a23dcb978e4c3ac8ee70e61240b6fe719f0edba0db30e580caa0
+#
+# Thin caller for the org-wide PR gate. The real jobs (secrets-scan, sast-semgrep,
+# dd-static-analysis, dd-sca, claude-review, pr-gate-summary) live in the reusable
+# workflow at Coridor-ai/coridor-sdlc/.github/workflows/pr-gate.yml.
+#
+# Why @main, not a pinned tag:
+#   main is the single source of continuous enforcement - a gate improvement
+#   protects every repo on its next PR, no rollout step. And @main is not an
+#   uncontrolled ref: every change to it goes through a PR on coridor-sdlc,
+#   the gate runs on that PR (self-check), and one human approval is required.
+#   Full rationale: VERSIONING.md in coridor-sdlc.
+#
+# Stability-sensitive repo? Pin a release tag instead:
+#   uses: Coridor-ai/coridor-sdlc/.github/workflows/pr-gate.yml@sdlc-v1
+# Pinned repos stop receiving gate updates until the pin moves - pin
+# deliberately and note it in the repo README.
+#
+# The status check this produces - the one branch protection requires - is
+# "pr-gate / pr-gate-summary".
+
+name: pr-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# One gate run per PR: a superseded push cancels the in-flight run instead of
+# burning Actions minutes on a stale diff. This caller's group ("pr-gate-<n>")
+# MUST stay distinct from the reusable workflow's group: the called pr-gate.yml
+# keys its group to a fixed "pr-gate-reusable-<n>" prefix precisely so the two
+# never match. If they matched, GitHub would see the same concurrency group on
+# parent and child and cancel the run at startup as a deadlock (do not rename
+# this group to whatever the reusable uses).
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-gate:
+    # Caller jobs that `uses:` a reusable workflow cannot set runs-on or
+    # timeout-minutes; those live on the jobs inside the reusable workflow.
+    # This permissions block is the ceiling for every job in the called
+    # workflow - the union of its per-job least-privilege blocks.
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    uses: Coridor-ai/coridor-sdlc/.github/workflows/pr-gate.yml@main
+    secrets: inherit
