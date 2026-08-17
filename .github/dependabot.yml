@@ -1,0 +1,31 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: d0abd30b95899fc7ed711804cfef1b55786665ec6bbc101968eda7c7d3442618
+#
+# Org-standard Dependabot config. The github-actions ecosystem is always on -
+# every repo has workflows. This file is deliberately github-actions-only:
+# the sync overwrites the whole body on every template change, so
+# repo-specific package ecosystems (npm, pip, cargo) must not be added here
+# -- they would be stripped by the next sync PR. A repo that needs them takes
+# this file out of the managed set (MANAGED_FILES in coridor-sdlc
+# scripts/sync-files.sh) and owns its own copy.
+#
+# Note: Dependabot does not create missing labels. scripts/sync-files.sh
+# creates "dependencies" in each target repo when it opens its first sync PR
+# there. Dependabot PRs deliberately do NOT carry the sdlc-sync label -- that
+# label means "sync PR from coridor-sdlc" and nothing else.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+    groups:
+      actions-minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

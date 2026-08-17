@@ -1,0 +1,60 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: 48088a2647033ecbb029287acef55403d6369bb05d4d8e3b8ee451257a473f0c
+#
+# Thin caller for the org-wide PR gate. The real jobs (secrets-scan,
+# sast-semgrep, claude-review, pr-gate-summary) live in the reusable workflow
+# at Coridor-ai/coridor-sdlc/.github/workflows/pr-gate.yml. Datadog Code
+# Security runs on push from datadog-code-security.yml, not in this gate.
+#
+# Why @main, not a pinned tag:
+#   main is the single source of continuous enforcement - a gate improvement
+#   protects every repo on its next PR, no rollout step. And @main is not an
+#   uncontrolled ref: every change to it goes through a PR on coridor-sdlc,
+#   the gate runs on that PR (self-check), and one human approval is required.
+#   Full rationale: VERSIONING.md in coridor-sdlc.
+#
+# Stability-sensitive repo? Pin a release tag instead:
+#   uses: Coridor-ai/coridor-sdlc/.github/workflows/pr-gate.yml@sdlc-v1
+# Pinned repos stop receiving gate updates until the pin moves - pin
+# deliberately and note it in the repo README.
+#
+# The status check this produces - the one branch protection requires - is
+# "pr-gate / pr-gate-summary".
+
+name: pr-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# One gate run per PR: a superseded push cancels the in-flight run instead of
+# burning Actions minutes on a stale diff. This caller's group ("pr-gate-<n>")
+# MUST stay distinct from the reusable workflow's group: the called pr-gate.yml
+# keys its group to a fixed "pr-gate-reusable-<n>" prefix precisely so the two
+# never match. If they matched, GitHub would see the same concurrency group on
+# parent and child and cancel the run at startup as a deadlock (do not rename
+# this group to whatever the reusable uses).
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-gate:
+    # Caller jobs that `uses:` a reusable workflow cannot set runs-on or
+    # timeout-minutes; those live on the jobs inside the reusable workflow.
+    # This permissions block is the ceiling for every job in the called
+    # workflow - the union of its per-job least-privilege blocks.
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    uses: Coridor-ai/coridor-sdlc/.github/workflows/pr-gate.yml@main
+    # Explicit map, not `secrets: inherit`: inherit hands the called workflow
+    # every secret the caller can see, and the Semgrep registry rule
+    # yaml.github-actions.security.secrets-inherit flags it at ERROR - which
+    # blocks this very gate. List exactly what the reusable workflow's
+    # workflow_call contract declares; when the contract grows a secret, add
+    # it here (the sync will carry the change to every repo). coridor-sdlc's
+    # self-check fails if this map and the contract ever disagree.
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

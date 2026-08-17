@@ -1,0 +1,28 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: c7c14f45e1203be64fb31f251375e392d38256bdcc10692a7eaa2944f0757ce5
+# Default Datadog Static Analysis config for Coridor repos.
+# Schema: legacy static-analysis.datadog.yml (rulesets/ignore), still
+# supported by datadog-static-analyzer; see doc/legacy_config.md in
+# DataDog/datadog-static-analyzer.
+# Ruleset names verified against DataDog/datadog-static-analyzer RULESETS.md.
+# The datadog-code-security dd-static-analysis job writes this same default
+# when a repo does not ship the file -- keep the inline default in
+# .github/workflows/datadog-code-security.yml in sync (self-check.yml enforces
+# it).
+schema-version: v1
+rulesets:
+  - typescript-common-security
+  - typescript-node-security
+  - typescript-browser-security
+  - typescript-best-practices
+  - javascript-common-security
+  - javascript-node-security
+  - javascript-browser-security
+  - javascript-best-practices
+  - python-security
+  - python-best-practices
+ignore:
+  - "**/node_modules"
+  - "**/dist"
+  - "**/build"
+  - "**/coverage"
+  - "**/.next"

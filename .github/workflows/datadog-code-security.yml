@@ -1,0 +1,56 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: 6375b8a0a829835ada6f281fa153d0474c23a8ccbc8ecfd8692415a305f96636
+#
+# Thin caller for org-wide Datadog Code Security. The real jobs
+# (dd-static-analysis, dd-sca, dd-quality-gate) live in the reusable workflow at
+# Coridor-ai/coridor-sdlc/.github/workflows/datadog-code-security.yml.
+#
+# Why push, not pull_request: Datadog Code Security rejects the pull_request
+# event ("The pull_request event is not supported by Datadog Code Security ...
+# use push instead"), so these jobs run on push to the long-lived branches
+# rather than in the pr-gate. The pr-gate (pull_request) keeps the secret/SAST
+# scanners and claude-review; Datadog lands on push.
+#
+# Why @main, not a pinned tag: same rationale as the pr-gate caller -- main is
+# continuous enforcement, and every change to it goes through a reviewed PR on
+# coridor-sdlc. Full rationale: VERSIONING.md in coridor-sdlc.
+
+name: datadog-code-security
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - uat
+
+# One run per branch: a superseded push cancels the in-flight run instead of
+# burning Actions minutes on a stale commit. This caller's group
+# ("datadog-code-security-<ref>") MUST stay distinct from the reusable
+# workflow's group: the called datadog-code-security.yml keys its group to a
+# fixed "datadog-code-security-reusable-<ref>" prefix precisely so the two never
+# match. If they matched, GitHub would see the same concurrency group on parent
+# and child and cancel the run at startup as a deadlock (do not rename this
+# group to whatever the reusable uses).
+concurrency:
+  group: datadog-code-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  datadog-code-security:
+    # Caller jobs that `uses:` a reusable workflow cannot set runs-on or
+    # timeout-minutes; those live on the jobs inside the reusable workflow.
+    # This permissions block is the ceiling for every job in the called
+    # workflow -- all of them need only contents: read.
+    permissions:
+      contents: read
+    uses: Coridor-ai/coridor-sdlc/.github/workflows/datadog-code-security.yml@main
+    # Explicit map, not `secrets: inherit`: inherit hands the called workflow
+    # every secret the caller can see, and the Semgrep registry rule
+    # yaml.github-actions.security.secrets-inherit flags it at ERROR in the
+    # pr-gate. List exactly what the reusable workflow's workflow_call
+    # contract declares; when the contract grows a secret, add it here (the
+    # sync will carry the change to every repo). coridor-sdlc's self-check
+    # fails if this map and the contract ever disagree.
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
