@@ -1,0 +1,10 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: 6cfe43a9fd6a09eafa8ba6100fd1aad2be054c9e752753077beb7939f766cd8b
+#
+# Default owner for everything in this repo. Review requests route here
+# automatically on every PR.
+#
+# When a team handle is designated for review routing (e.g. @Coridor-ai/eng),
+# replace @hub-coridor with it. Add path-specific owners below the default as
+# ownership splits.
+
+* @hub-coridor

@@ -1,0 +1,278 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: 68006a4a0e6d7587f595b7c8f71dc8b5304ba75123fb3d618aef2ff38df89c78
+# Coridor custom Semgrep rules -- GDPR / data-protection focus.
+# Distributed to product repos as .coridor/semgrep.yml by the sync layer; the
+# pr-gate sast-semgrep job adds that file as an extra --config when present.
+# Severity contract: ERROR blocks the PR, WARNING/INFO are reported only.
+# Test locally: semgrep scan --config .coridor/semgrep.yml --metrics=off
+# (in coridor-sdlc itself the source lives at semgrep/pii-rules.yml)
+rules:
+  - id: coridor-pii-in-log-js
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      PII-shaped value (email/phone/SSN/DOB/card-number style identifier)
+      passed to a logger.
+      Personal data in logs spreads to log pipelines and backups where it
+      cannot be selectively erased -- GDPR Art. 5(1)(c) data minimisation and
+      Art. 17 erasure.
+    patterns:
+      - pattern-either:
+          - pattern: console.$METHOD(..., $PII, ...)
+          - pattern: logger.$METHOD(..., $PII, ...)
+          - pattern: log.$METHOD(..., $PII, ...)
+      # A bare string literal is a constant, not a PII-carrying value --
+      # console.log("Email sent") must not fire. Identifiers, member
+      # accesses, and interpolations still bind to $PII.
+      - metavariable-pattern:
+          metavariable: $PII
+          patterns:
+            - pattern-not: '"..."'
+      - metavariable-regex:
+          metavariable: $PII
+          regex: (?i).*(email|e_mail|phone|mobile|ssn|social_?security|passport|date_?of_?birth|birth_?date|\bdob\b|credit_?card|card_?number|iban|national_?id|tax_?id|driver_?licen).*
+    metadata:
+      category: security
+      confidence: LOW
+      compliance: "GDPR Art. 5(1)(c), Art. 17, Art. 32"
+
+  - id: coridor-pii-in-log-python
+    languages: [python]
+    severity: WARNING
+    message: >-
+      PII-shaped value (email/phone/SSN/DOB/card-number style identifier)
+      passed to print or a logger.
+      Personal data in logs spreads to log pipelines and backups where it
+      cannot be selectively erased -- GDPR Art. 5(1)(c) data minimisation and
+      Art. 17 erasure.
+    patterns:
+      - pattern-either:
+          - pattern: print(..., $PII, ...)
+          - pattern: logging.$METHOD(..., $PII, ...)
+          - pattern: logger.$METHOD(..., $PII, ...)
+          - pattern: log.$METHOD(..., $PII, ...)
+      # A bare string literal is a constant, not a PII-carrying value --
+      # print("email queued") must not fire. Identifiers and f-string
+      # interpolations still bind to $PII.
+      - metavariable-pattern:
+          metavariable: $PII
+          patterns:
+            - pattern-not: '"..."'
+      - metavariable-regex:
+          metavariable: $PII
+          regex: (?i).*(email|e_mail|phone|mobile|ssn|social_?security|passport|date_?of_?birth|birth_?date|\bdob\b|credit_?card|card_?number|iban|national_?id|tax_?id|driver_?licen).*
+    metadata:
+      category: security
+      confidence: LOW
+      compliance: "GDPR Art. 5(1)(c), Art. 17, Art. 32"
+
+  - id: coridor-pii-in-error-message-js
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      PII-shaped value interpolated into a thrown error message.
+      Error messages end up in logs, monitoring, and API responses, leaking
+      personal data outside its intended processing scope -- GDPR Art. 32.
+    patterns:
+      - pattern: throw new $EXC(..., <... $PII ...>, ...)
+      # Same literal exclusion as the log rules above: a constant message
+      # (throw new Error("Email is invalid")) carries no personal data.
+      - metavariable-pattern:
+          metavariable: $PII
+          patterns:
+            - pattern-not: '"..."'
+      - metavariable-regex:
+          metavariable: $PII
+          regex: (?i).*(email|e_mail|phone|mobile|ssn|social_?security|passport|date_?of_?birth|birth_?date|\bdob\b|credit_?card|card_?number|iban|national_?id|tax_?id|driver_?licen).*
+    metadata:
+      category: security
+      confidence: LOW
+      compliance: "GDPR Art. 32"
+
+  - id: coridor-pii-in-error-message-python
+    languages: [python]
+    severity: WARNING
+    message: >-
+      PII-shaped value interpolated into a raised exception message.
+      Error messages end up in logs, monitoring, and API responses, leaking
+      personal data outside its intended processing scope -- GDPR Art. 32.
+    patterns:
+      - pattern: raise $EXC(..., <... $PII ...>, ...)
+      # Same literal exclusion as the log rules above: a constant message
+      # (raise ValueError("Email is invalid")) carries no personal data.
+      - metavariable-pattern:
+          metavariable: $PII
+          patterns:
+            - pattern-not: '"..."'
+      - metavariable-regex:
+          metavariable: $PII
+          regex: (?i).*(email|e_mail|phone|mobile|ssn|social_?security|passport|date_?of_?birth|birth_?date|\bdob\b|credit_?card|card_?number|iban|national_?id|tax_?id|driver_?licen).*
+    metadata:
+      category: security
+      confidence: LOW
+      compliance: "GDPR Art. 32"
+
+  - id: coridor-sql-built-from-request-js
+    mode: taint
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      A query-execution call receives a value derived from request input.
+      String-built SQL with user-controlled data is SQL injection (OWASP A03,
+      CWE-89); use parameterized queries or the query builder.
+    # Taint mode traces the tainted value through variable assignment, not
+    # just inline concatenation at the call site -- a bare pattern match on
+    # $DB.$METHOD($ARG, ...) only sees the call-site expression, so
+    # `const sql = "..." + req.params.id; db.query(sql)` bound $ARG to the
+    # identifier `sql` and the SQL-keyword/concatenation regex on it never
+    # matched. No sanitizer is declared: passing the value through any
+    # unrecognized function (escape/sanitize helpers included) does not
+    # clear the taint label by default.
+    pattern-sources:
+      - pattern-either:
+          - pattern: req.$X
+          - pattern: request.$X
+    pattern-sinks:
+      - patterns:
+          - pattern: $DB.$METHOD($SINK, ...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(query|execute|raw)$
+          # Exclude bound-parameter sinks: a prepared statement passes tainted
+          # values as an array (stmt.execute([req.id])) -- that is the SAFE
+          # parameterized form, not string-built SQL. A SQL string is never an
+          # array literal, so this drops the false positive without masking a
+          # real string-built query.
+          - metavariable-pattern:
+              metavariable: $SINK
+              patterns:
+                - pattern-not: "[...]"
+          - focus-metavariable: $SINK
+    metadata:
+      category: security
+      confidence: MEDIUM
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  - id: coridor-sql-built-from-request-python
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A query-execution call receives a value derived from request input.
+      String-built SQL with user-controlled data is SQL injection (OWASP A03,
+      CWE-89); pass parameters separately (cursor.execute(sql, params)).
+    # Same taint-tracing rationale as the JS rule above: catches
+    # `sql = f"..." ; cur.execute(sql)`, which a call-site-only pattern
+    # match cannot see.
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.$X
+          - pattern: flask.request.$X
+    pattern-sinks:
+      - patterns:
+          - pattern: $CUR.execute($SINK, ...)
+          # Exclude bound-parameter sinks: prepared execute passes tainted
+          # values as a tuple/list (stmt.execute((req.id,))) -- the SAFE
+          # parameterized form. A SQL string is never a tuple or list literal.
+          - metavariable-pattern:
+              metavariable: $SINK
+              patterns:
+                - pattern-not: "[...]"
+                - pattern-not: "($X, ...)"
+          - focus-metavariable: $SINK
+    metadata:
+      category: security
+      confidence: MEDIUM
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  - id: coridor-cleartext-http-endpoint
+    languages: [typescript, javascript, python]
+    severity: WARNING
+    message: >-
+      Hardcoded http:// (non-TLS) URL for what looks like a service endpoint.
+      Personal data in transit must be encrypted -- GDPR Art. 32(1)(a); use
+      https:// everywhere except loopback.
+    # Text-level regex match (the rule spans three languages); the broken
+    # `pattern: '"=~/.../"'` form matched a string literal containing that
+    # literal text and never fired. pattern-regex scans raw source like the
+    # coridor-tls-verification-disabled rule below. pattern-not-regex drops
+    # loopback/bind-any hosts and well-known XML-namespace identifiers
+    # (w3.org etc.), which are not data-carrying endpoints. The trailing
+    # ([:/?#\s"'`]|$) anchors the hostname boundary so a non-loopback host
+    # whose name merely starts with one of these (e.g. http://localhost.example,
+    # a different external host) is NOT excluded -- the classic substring/
+    # host-prefix confusion that bites unanchored CORS origin checks.
+    patterns:
+      - pattern-regex: 'http://[\w.\-\[\]:]+'
+      - pattern-not-regex: 'http://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|(www\.)?w3\.org|purl\.org|xmlns\.com)([:/?#\s"''`]|$)'
+    metadata:
+      category: security
+      confidence: LOW
+      compliance: "GDPR Art. 32(1)(a)"
+
+  - id: coridor-hardcoded-jwt-secret-js
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Hardcoded string literal used as a JWT signing/verification secret.
+      A secret in source is a credential leak (CWE-798) and forgeable session
+      tokens; load it from configuration or a secret manager.
+    patterns:
+      - pattern-either:
+          - pattern: $JWT.sign($PAYLOAD, "...", ...)
+          - pattern: $JWT.verify($TOKEN, "...", ...)
+      - metavariable-regex:
+          metavariable: $JWT
+          regex: (?i).*(jwt|jsonwebtoken|jose).*
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-798"
+
+  - id: coridor-private-key-literal
+    languages: [typescript, javascript, python]
+    severity: ERROR
+    message: >-
+      PEM private key material embedded in source code.
+      Committed keys are compromised keys (CWE-798); revoke it, rotate, and
+      load keys from a secret manager.
+    # ERROR-severity block: must fire on any embedded PEM private-key header.
+    # The broken `pattern: '"=~/.../"'` form matched a string literal whose
+    # content was that literal text and never fired -- a real gate gap.
+    # pattern-regex scans raw source so it catches keys in any of the three
+    # languages, in strings or comments alike.
+    pattern-regex: '-----BEGIN[ A-Z]*PRIVATE KEY-----'
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-798"
+
+  - id: coridor-tls-verification-disabled
+    languages: [typescript, javascript, python]
+    severity: ERROR
+    message: >-
+      TLS certificate verification disabled (rejectUnauthorized false,
+      NODE_TLS_REJECT_UNAUTHORIZED=0, or verify=False).
+      Disabling verification allows man-in-the-middle interception of any
+      data in transit, including personal data -- GDPR Art. 32, CWE-295.
+    # Raw-source regexes (the rule spans three languages), so matches inside
+    # comments fire too -- accepted, same tradeoff the private-key rule above
+    # documents: prose that spells out the exact disable syntax is rare and
+    # cheap to reword, and a text-level match cannot tell the difference.
+    # The env-var regex anchors on a single `=` (assignment): `["'\]\s]*`
+    # spans the `"]` of a bracket lookup and `(?!=)` rejects `==`/`===`, so
+    # a guard that merely COMPARES the variable does not fire. The Python
+    # kwarg regex requires a non-word left boundary so unrelated identifiers
+    # that end in "verify" (skip_verify = False) do not fire; `.verify` still
+    # does (session.verify = False disables verification in requests).
+    patterns:
+      - pattern-either:
+          - pattern-regex: rejectUnauthorized\s*:\s*false
+          - pattern-regex: NODE_TLS_REJECT_UNAUTHORIZED["'\]\s]*=(?!=)\s*["']?0
+          - pattern-regex: (?<!\w)verify\s*=\s*False
+    metadata:
+      category: security
+      confidence: MEDIUM
+      cwe: "CWE-295"
+      compliance: "GDPR Art. 32"

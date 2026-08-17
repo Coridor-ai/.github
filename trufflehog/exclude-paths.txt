@@ -1,0 +1,42 @@
+# coridor-sdlc managed file - synced from Coridor-ai/coridor-sdlc; edit there, not here. template-version: 41f6a182263c2ce1ae35722307dad61529e62090f292be0682798970aa633630
+# TruffleHog exclude paths for the Coridor PR gate (secrets-scan job).
+# One Go regex per line, matched unanchored against repo-relative file paths.
+# TruffleHog skips comment (#) and blank lines (pkg/common/filter.go).
+# Excluded paths are NOT scanned for secrets -- keep this list to generated
+# and vendored content. Fixtures/snapshots are excluded as known
+# false-positive sources; never park real credentials there.
+
+# Dependency trees and vendored code
+(^|/)node_modules/
+(^|/)vendor/
+
+# Build output
+(^|/)dist/
+(^|/)build/
+(^|/)out/
+(^|/)\.next/
+(^|/)coverage/
+
+# Lockfiles (integrity hashes trip entropy detectors)
+(^|/)package-lock\.json$
+(^|/)yarn\.lock$
+(^|/)pnpm-lock\.yaml$
+(^|/)bun\.lockb$
+(^|/)bun\.lock$
+(^|/)poetry\.lock$
+(^|/)uv\.lock$
+(^|/)Cargo\.lock$
+(^|/)go\.sum$
+
+# Minified/generated frontend assets and source maps
+\.min\.js$
+\.min\.css$
+\.map$
+
+# Test fixtures and snapshots
+(^|/)__snapshots__/
+\.snap$
+(^|/)fixtures/
+
+# Binary-ish assets
+\.(png|jpe?g|gif|svg|ico|woff2?|ttf|eot|pdf|zip|gz)$
